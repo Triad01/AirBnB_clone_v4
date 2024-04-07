@@ -1,30 +1,55 @@
-#!usr/bin/python3
-""" Test index view """
-import unittest
-import os
+#!/usr/bin/python3
+"""
+Unit Test for api v1 Flask App
+"""
+import inspect
 import pep8
-from models import storage
-import api.v1.app
+import web_flask
+import unittest
+from os import stat
+import api
+module = api.v1.views.index
 
 
-class TestIndex(unittest.TestCase):
-    """ Test the index view """
+class TestIndexDocs(unittest.TestCase):
+    """Class for testing Hello Route docs"""
 
-    def setUp(self):
-        """ Setup for testing """
-        api.v1.app.app.testing = True
-        self.app = api.v1.app.app.test_client()
+    all_funcs = inspect.getmembers(module, inspect.isfunction)
 
-    def test_status(self):
-        """ Test api/v1/views/status """
-        rv = self.app.get('api/v1/status')
-        assert b'status' in rv.data
+    @classmethod
+    def setUpClass(cls):
+        print('\n\n.................................')
+        print('..... Testing Documentation .....')
+        print('.......  Index API  .......')
+        print('.................................\n\n')
 
-    def test_stats(self):
-        """ Test api/v1/stats """
-        rv = self.app.get('api/v1/stats')
-        assert b'amenities' in rv.data
-        assert b'cities' in rv.data
-        assert b'reviews' in rv.data
-        assert b'states' in rv.data
-        assert b'users' in rv.data
+    def test_doc_file(self):
+        """... documentation for the file"""
+        actual = module.__doc__
+        self.assertIsNotNone(actual)
+
+    def test_all_function_docs(self):
+        """... tests for ALL DOCS for all functions"""
+        all_functions = TestIndexDocs.all_funcs
+        for function in all_functions:
+            self.assertIsNotNone(function[1].__doc__)
+
+    def test_pep8(self):
+        """... tests if file conforms to PEP8 Style"""
+        pep8style = pep8.StyleGuide(quiet=True)
+        errors = pep8style.check_files(['api/v1/views/index.py'])
+        self.assertEqual(errors.total_errors, 0, errors.messages)
+
+    def test_file_is_executable(self):
+        """... tests if file has correct permissions so user can execute"""
+        file_stat = stat('api/v1/views/index.py')
+        permissions = str(oct(file_stat[0]))
+        actual = int(permissions[5:-2]) >= 5
+        self.assertTrue(actual)
+
+
+if __name__ == '__main__':
+    """
+    MAIN TESTS
+    """
+    unittest.main

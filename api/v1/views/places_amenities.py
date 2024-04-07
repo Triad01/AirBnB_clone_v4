@@ -1,105 +1,68 @@
 #!/usr/bin/python3
-""" Module containing Amenity View """
+"""
+Flask route that returns json status response
+"""
 from api.v1.views import app_views
-from flask import jsonify, abort, request
-from models import storage, storage_t
-from models.amenity import Amenity
+from flask import abort, jsonify, request
+from models import storage, CNC
+from os import environ
+STORAGE_TYPE = environ.get('HBNB_TYPE_STORAGE')
 
 
-@app_views.route('/places/<string:place_id>/amenities', methods=['GET'],
-                 strict_slashes=False)
-def get_place_amenities(place_id):
-    """ Retrieves the list of all Amenity objects associated with a Place
-        object.
-
-    Args:
-        place_id (str): The UUID4 string representing a Place object.
-
-    Returns:
-        If retrieving from db storage, a list of dictionaries representing
-        Amenity objects in JSON format is returned.
-        If retrieving from file storage, a list of amenity ids in JSON format
-        is returned.
-        404 error if `place_id` is not linked to any Place object.
+@app_views.route('/places/<place_id>/amenities', methods=['GET'])
+def amenities_per_place(place_id=None):
     """
-    place_obj = storage.get("Place", place_id)
+        reviews route to handle http method for requested reviews by place
+    """
+    place_obj = storage.get('Place', place_id)
+
+    if request.method == 'GET':
+        if place_obj is None:
+            abort(404, 'Not found')
+        all_amenities = storage.all('Amenity')
+        if STORAGE_TYPE == 'db':
+            place_amenities = place_obj.amenities
+        else:
+            place_amen_ids = place_obj.amenities
+            place_amenities = []
+            for amen in place_amen_ids:
+                response.append(storage.get('Amenity', amen))
+        place_amenities = [
+            obj.to_json() for obj in place_amenities
+            ]
+        return jsonify(place_amenities)
+
+
+@app_views.route('/places/<place_id>/amenities/<amenity_id>',
+                 methods=['DELETE', 'POST'])
+def amenity_to_place(place_id=None, amenity_id=None):
+    """
+        reviews route to handle http methods for given review by ID
+    """
+    place_obj = storage.get('Place', place_id)
+    amenity_obj = storage.get('Amenity', amenity_id)
     if place_obj is None:
-        abort(404)
-    if storage_t == 'db':
-        amenities = [amenity.to_dict() for amenity in place_obj.amenities]
-    else:
-        amenities = place_obj.amenity_ids
-    return jsonify(amenities)
+        abort(404, 'Not found')
+    if amenity_obj is None:
+        abort(404, 'Not found')
 
+    if request.method == 'DELETE':
+        if (amenity_obj not in place_obj.amenities and
+                amenity_obj.id not in place_obj.amenities):
+            abort(404, 'Not found')
+        if STORAGE_TYPE == 'db':
+            place_obj.amenities.remove(amenity_obj)
+        else:
+            place_obj.amenity_ids.pop(amenity_obj.id, None)
+        place_obj.save()
+        return jsonify({}), 200
 
-@app_views.route('/places/<string:place_id>/amenities/<string:amenity_id>',
-                 methods=['DELETE'], strict_slashes=False)
-def unlink_amenity(place_id, amenity_id):
-    """ Remove an Amenity object from a Place object.
-
-    Args:
-        place_id (str): The UUID4 string representing a Place object.
-        amenity_id (str): The UUID4 string representing a Amenity object.
-
-    Returns:
-        Returns an empty dictionary with the status code 200.
-        404 error if:
-            `place_id` is not linked to any Place object.
-            `amenity_id` is not linked to any Amenity object.
-            The Amenity object associated with `amenity_id` is not linked to
-            the Place object associated with `place_id`.
-    """
-    place_obj = storage.get("Place", place_id)
-    amenity_obj = storage.get("Amenity", amenity_id)
-    if None in [place_obj, amenity_obj]:
-        abort(404)
-    if storage_t == 'db':
-        if amenity_obj not in place_obj.amenities:
-            abort(404)
-    else:
-        if amenity_obj.id not in place_obj.amenity_ids:
-            abort(404)
-    if storage_t == 'db':
-        place_obj.amenities.remove(amenity_obj)
-    else:
-        place_obj.amenity_ids.remove(amenity_obj.id)
-
-    storage.save()
-    return jsonify({})
-
-
-@app_views.route('/places/<string:place_id>/amenities/<string:amenity_id>',
-                 methods=['POST'], strict_slashes=False)
-def link_amenity(place_id, amenity_id):
-    """ Links an Amenity object to a Place object.
-
-    Args:
-        place_id (str): The UUID4 string representing an existing Place object.
-        amenity_id (str): The UUID4 stirng representing an existing Amenity
-        object.
-
-    Returns:
-        Returns the Amenity object as a  dictionary in JSON format with the
-        status code 201.
-        404 error if:
-            `place_id` is not linked to any Place object.
-            `amenity_id` is not linked to any Amenity object.
-        200 status if the Amenity object associated with `amenity_id` is
-        already linked to the Place object associated with `place_id`.
-    """
-    place_obj = storage.get("Place", place_id)
-    amenity_obj = storage.get("Amenity", amenity_id)
-    if None in [place_obj, amenity_obj]:
-        abort(404)
-    if storage_t == 'db':
-        if amenity_obj in place_obj.amenities:
-            return jsonify(amenity_obj.to_dict())
-    else:
-        if amenity_obj.id in place_obj.amenity_ids:
-            return jsonify(amenity_obj.to_dict())
-    if storage_t == 'db':
-        place_obj.amenities.append(amenity_obj)
-    else:
-        place_obj.amenity_ids.append(amenity_obj.id)
-    storage.save()
-    return jsonify(amenity_obj.to_dict()), 201
+    if request.method == 'POST':
+        if (amenity_obj in place_obj.amenities or
+                amenity_obj.id in place_obj.amenities):
+            return jsonify(amenity_obj.to_json()), 200
+        if STORAGE_TYPE == 'db':
+            place_obj.amenities.append(amenity_obj)
+        else:
+            place_obj.amenities = amenity_obj
+        return jsonify(amenity_obj.to_json()), 201
