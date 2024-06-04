@@ -10,17 +10,25 @@ header .logo {
     left: 20px;
     height: 100%;
 }
-header #api_status, .available {
+/* MY MODIFICATION */
+#api_status{
+    background-color: #CCCCCC;
+}
+header #api_status {
     width: 40px;
     height: 40px;
-    background-color: #cccccc;
+    /* background-color: #cccccc;  */
     border-radius: 50%;
     position: absolute;
     right: 30px;
     top: 50%;
     transform: translateY(-50%);
 }
-header .available {
-    background-color: #ff545f;
 
+#api_status.available{
+    background-color: #ff545f;
 }
+/* THIS IS WHAT ALX WANTS BUT NOT WHAT I WANT */
+/* header .available {
+    background-color: #ff545f;
+} */
